@@ -18,6 +18,22 @@ TEST_MODE_QUESTIONS = 10
 st.set_page_config(page_title="日本語学習アプリ", page_icon="🇯🇵", layout="centered")
 db.init_db()
 
+# ---------------- フレンドリーな丸ゴシック系フォント ----------------
+# 日本語はM PLUS Rounded 1c、ベトナム語の声調記号などはNunitoが担当する
+# (1つのフォントでカバーしきれない文字は、次のフォントに自動で引き継がれる)
+st.markdown(
+    """
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700&family=Nunito:wght@400;700&display=swap');
+
+    html, body, [class*="css"] {
+        font-family: 'M PLUS Rounded 1c', 'Nunito', sans-serif !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 # ---------------- ユーザー識別(簡易・ログイン機能は未実装) ----------------
 if "user_id" not in st.session_state:
     st.session_state.user_id = "guest"
@@ -186,12 +202,13 @@ st.divider()
 
 # ---------------- タイマー処理 ----------------
 if not st.session_state.answered:
-    # 更新間隔が短すぎるとボタンのクリックと自動更新が競合し、
-    # 「押したのに反応しない」現象が起きやすくなるため1秒間隔にする。
-    # limitで、時間切れ後に不要な自動更新が続かないようにする。
+    # debounce=True にすることで、クリックなど他の操作が起きた直後は
+    # 自動更新のタイマーをリセットする。これによりクリックと自動更新が
+    # 衝突して反応が鈍くなる問題を防ぐ。
     st_autorefresh(
         interval=1000,
         limit=TIME_LIMIT_SECONDS + 3,
+        debounce=True,
         key=f"timer_{st.session_state.current_vocab_id}",
     )
     elapsed = time.time() - st.session_state.question_start_time
