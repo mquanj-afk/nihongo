@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import base64
 import random
 import time
 
@@ -8,6 +9,8 @@ from streamlit_autorefresh import st_autorefresh
 from vocab_data import VOCAB_DATA, LEVEL_NAMES, get_vocab_by_level, get_vocab_by_id
 from sound_data import CORRECT_SOUND_B64
 import db
+
+CORRECT_SOUND_BYTES = base64.b64decode(CORRECT_SOUND_B64)
 
 TIME_LIMIT_SECONDS = 7
 TEST_MODE_QUESTIONS = 10
@@ -132,16 +135,9 @@ def submit_answer(choice, timed_out=False):
 
 
 def play_correct_sound():
-    # 再生のたびに一意なタグにして、同じ音でも確実に再生させる
-    unique = int(time.time() * 1000)
-    st.markdown(
-        f"""
-        <audio autoplay="true" id="sound-{unique}">
-            <source src="data:audio/wav;base64,{CORRECT_SOUND_B64}" type="audio/wav">
-        </audio>
-        """,
-        unsafe_allow_html=True,
-    )
+    # Streamlit公式のst.audio(autoplay対応)を使うことで、
+    # 手書きHTMLよりブラウザの自動再生制限を受けにくくする
+    st.audio(CORRECT_SOUND_BYTES, format="audio/wav", autoplay=True)
 
 
 # ---------------- テストモード開始処理 ----------------
@@ -190,7 +186,14 @@ st.divider()
 
 # ---------------- タイマー処理 ----------------
 if not st.session_state.answered:
-    st_autorefresh(interval=500, key=f"timer_{st.session_state.current_vocab_id}")
+    # 更新間隔が短すぎるとボタンのクリックと自動更新が競合し、
+    # 「押したのに反応しない」現象が起きやすくなるため1秒間隔にする。
+    # limitで、時間切れ後に不要な自動更新が続かないようにする。
+    st_autorefresh(
+        interval=1000,
+        limit=TIME_LIMIT_SECONDS + 3,
+        key=f"timer_{st.session_state.current_vocab_id}",
+    )
     elapsed = time.time() - st.session_state.question_start_time
     remaining = max(0.0, TIME_LIMIT_SECONDS - elapsed)
 
